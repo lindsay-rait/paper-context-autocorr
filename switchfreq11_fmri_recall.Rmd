@@ -1,0 +1,1733 @@
+---
+title: "switchfreq11_fmri_recall"
+output: html_document
+date: "2024-06-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+#Load in libraries 
+library(tidyverse)
+library(rio)
+library(plyr)
+library(dplyr)
+library(fs)
+library(lme4)
+library(lmerTest)
+library(psych)
+options(scipen=999)
+library(ggplot2)
+library(sjPlot)
+library(afex)
+library(Rmisc)
+library(lsr)
+library(stringr)
+```
+
+
+
+```{r}
+
+#loading in data 
+
+switch11_fmri <- import("switchfreq11_fmri_rawdata_encoding.csv")
+switch11_fmri
+
+#filter out the math distractor task to include only the encoding data 
+switch11_fmri_encoding <-  switch11_fmri %>% 
+  filter(trialcode == "encoding")
+
+```
+
+```{r}
+#add in columns to data set 
+#Create new column based on list half (first vs second half)
+#Add in recall number 
+switch11_fmri_encoding2 <- switch11_fmri_encoding %>% 
+   mutate(list_half = case_when(trialnum == "1" ~ "first_half",
+                                         trialnum == "2" ~"first_half",
+                                         trialnum == "3" ~"first_half",
+                                         trialnum == "4" ~"first_half",
+                                         trialnum == "5" ~ "first_half",
+                                         trialnum == "6" ~"first_half",
+                                         trialnum == "7" ~"first_half",
+                                         trialnum == "8" ~"first_half",
+                                         trialnum == "9" ~"first_half",
+                                         trialnum == "10" ~"first_half",
+                                         trialnum == "11" ~"first_half",
+                                         trialnum == "12" ~ "first_half",
+                                         trialnum == "13" ~"second_half",
+                                         trialnum == "14" ~"second_half",
+                                         trialnum == "15" ~"second_half",
+                                          trialnum == "16" ~"second_half",
+                                trialnum == "17" ~"second_half",
+                                trialnum == "18" ~"second_half",
+                                trialnum == "19" ~"second_half",
+                                trialnum == "20" ~"second_half",
+                                trialnum == "21" ~"second_half",
+                                trialnum == "22" ~"second_half",
+                                trialnum == "23" ~"second_half",
+                                trialnum == "24" ~"second_half")) %>% 
+   mutate(pool_number = case_when(word_enc == "ACORN"~ 1, 
+word_enc == "ANCHOR"~	2,
+word_enc =="APPLE"	~3,
+word_enc =="APRON"	~4, 
+word_enc =="ARROW"~	5,
+word_enc =="BACON"~	6,
+word_enc =="BAKER"~	7,
+word_enc =="BANDAGE"~ 8,
+word_enc =="BANJO"~	9,
+word_enc =="BANKER"~	10,
+word_enc =="BASEBALL"~	11,
+word_enc =="BEAKER"~	12,
+word_enc =="BEETLE"~	13,
+word_enc =="BINDER"~	14,
+word_enc =="BISCUIT"~	15,
+word_enc =="BISON"~	16,
+word_enc =="BLENDER"~	17,
+word_enc =="BOTTLE"~	18,
+word_enc =="BRIEFCASE"~	19,
+word_enc =="BUILDING"~	20,
+word_enc =="BUTTER"~	21,
+word_enc =="BUTTON"~	22,
+word_enc =="CABBAGE"~	23,
+word_enc =="CACTUS"~	24,
+word_enc =="CAMEL"~	25,
+word_enc =="CANDY"~	26,
+word_enc =="CANOE"~	27,
+word_enc =="CANVAS"~	28,
+word_enc =="CARPET"~	29,
+word_enc =="CARROT"~	30,
+word_enc =="CARTON"~	31,
+word_enc =="CASTLE"~	32,
+word_enc =="CATTLE"~	33,
+word_enc =="CELLO"~	34,
+word_enc =="CHECKERS"~	35,
+word_enc =="CHEDDAR"~	36,
+word_enc =="CHERRY"~	37,
+word_enc =="CHICKEN"~	38,
+word_enc =="CHIPMUNK"~	39,
+word_enc =="COFFEE"~	40,
+word_enc =="COMPASS"~	41,
+word_enc =='COOKIE'~	42,
+word_enc =="COOLER"~	43,
+word_enc =="CORAL"~	44,
+word_enc =="COTTON"~	45,
+word_enc =="CRACKER"~	46,
+word_enc =="CRAYON"~	47,
+word_enc =="CRICKET"~	48,
+word_enc =="CRYSTAL"~	49,
+word_enc =="CURTAIN"~	50,
+word_enc =="DAISY"~	51,
+word_enc =="DENIM"~	52,
+word_enc =="DENTIST"~	53,
+word_enc =="DESSERT"~	54,
+word_enc =="DIAPER"~	55,
+word_enc =="DINNER"~	56,
+word_enc =="DOLLAR"~	57,
+word_enc =="DOLPHIN"~	58,
+word_enc =="DONKEY"~	59,
+word_enc =="DOORBELL"~	60,
+word_enc =="DOUGHNUT"~	61,
+word_enc =="DRAWING"~	62,
+word_enc =="DRESSER"~	63,
+word_enc =="DUSTPAN"~	64,
+word_enc =="EAGLE"~	65,
+word_enc =="EARRING"~	66,
+word_enc =="ESSAY"~	67,
+word_enc =="FAUCET"~	68,
+word_enc =="FEATHER"~	69,
+word_enc =="FLANNEL"~	70,
+word_enc =="FLASHLIGHT"~	71,
+word_enc =="FOLDER"~	72,
+word_enc =="FOOTBALL"~	73,
+word_enc =="FOREST"~	74,
+word_enc =="FOSSIL"~	75,
+word_enc =="FREEZER"~	76,
+word_enc =="GARBAGE"~	77,
+word_enc =="GARDEN"~	78,
+word_enc =="GARLIC"~	79,
+word_enc =="GIRAFFE"~	80,
+word_enc =="GUITAR"~	81,
+word_enc =="GYMNAST"~	82,
+word_enc =="HAMMER"~	83,
+word_enc =="HAMMOCK"~	84,
+word_enc =="HANDBAG"~	85,
+word_enc =="HANGER"~	86,
+word_enc =="HEADBAND"~	87,
+word_enc =="HELMET"~	88,
+word_enc =="HIKER"~	89,
+word_enc =="HONEY"~	90,
+word_enc =="JACKET"~	91,
+word_enc =="JELLY"~	92,
+word_enc =="KETCHUP"~	93,
+word_enc =="KEYBOARD"~	94,
+word_enc =="KITCHEN"~	95,
+word_enc =="LADDER"~	96,
+word_enc =="LAUNDRY"~	97,
+word_enc =="LEMON"~	98,
+word_enc =="LETTER"~	99,
+word_enc =="LETTUCE"~	100,
+word_enc =="LINEN"~	101,
+word_enc =="LION"~	102,
+word_enc =="LIPSTICK"~	103,
+word_enc =="LITTER"~	104,
+word_enc =="LIZARD"~	105,
+word_enc =="LUGGAGE"~	106,
+word_enc =="LUMBER"~	107,
+word_enc =="MACHINE"~	108,
+word_enc =="MAILBOX"~	109,
+word_enc =="MARBLE"~	110,
+word_enc =="MATTRESS"~	111,
+word_enc =="MIRROR"~	112,
+word_enc =="MITTEN"~	113,
+word_enc =="MONKEY"~	114,
+word_enc =="MUFFIN"~	115,
+word_enc =="MUSHROOM"~	116,
+word_enc =="NAPKIN"~	117,
+word_enc =="NECKLACE"~	118,
+word_enc =="NEEDLE"~	119,
+word_enc =="NOVEL"~	120,
+word_enc =="OATMEAL"~	121,
+word_enc =="OLIVE"~	122,
+word_enc =="OMELET"~	123,
+word_enc =="ONION"~	124,
+word_enc =="ORANGE"~	125,
+word_enc =="OTTER"~	126,
+word_enc =="OUTFIT"~	127,
+word_enc =="OVEN"~	128,
+word_enc =="OWL"~	129,
+word_enc =="OYSTER"~	130,
+word_enc =="PACKAGE"~	131,
+word_enc =="PADDLE"~	132,
+word_enc =="PAINTING"~	133,
+word_enc =="PASTA"~	134,
+word_enc =="PASTRY"~	135,
+word_enc =="PEBBLE"~	136,
+word_enc =="PENCIL"~	137,
+word_enc =="PENGUIN"~	138,
+word_enc =="PENNY"~	139,
+word_enc =="PEPPER"~	140,
+word_enc =="PICKLE"~	141,
+word_enc =="PICNIC"~	142,
+word_enc =="PIGEON"~	143,
+word_enc =="PILLOW"~	144,
+word_enc =="PILOT"~	145,
+word_enc =="PIZZA"~	146,
+word_enc =="POPCORN"~	147,
+word_enc =="PRINTER"~	148,
+word_enc =="PUDDING"~	149,
+word_enc =="PUDDLE"~	150,
+word_enc =="PUMPKIN"~	151,
+word_enc =='PUZZLE'~	152,
+word_enc =="RABBIT"~	153,
+word_enc =="RACKET"~	154,
+word_enc =="RADISH"~	155,
+word_enc =="RAILROAD"~	156,
+word_enc =="RAISIN"~	157,
+word_enc =="RATTLE"~	158,
+word_enc =="RECEIPT"~	159,
+word_enc =="REPORT"~	160,
+word_enc =="RIBBON"~	161,
+word_enc =="ROBOT"~	162,
+word_enc =="SAILOR"~	163,
+word_enc =="SALAD"~	164,
+word_enc =="SALMON"~	165,
+word_enc =="SANDWICH"~	166,
+word_enc =="SHAMPOO"~	167,
+word_enc =="SHOELACE"~	168,
+word_enc =="SHOVEL"~	169,
+word_enc =="SHOWER"~	170,
+word_enc =="SIDEWALK"~	171,
+word_enc =="SNORKEL"~	172,
+word_enc =="SODA"~	173,
+word_enc =="SQUIRREL"~	174,
+word_enc =="STATUE"~	175,
+word_enc =="STICKER"~	176,
+word_enc =="SUGAR"~	177,
+word_enc =="SUITCASE"~	178,
+word_enc =="SUNRISE"~	179,
+word_enc =="SWEATER"~	180,
+word_enc =="TABLE"~	181,
+word_enc =="TEACHER"~	182,
+word_enc =="TOASTER"~	183,
+word_enc =="TOOTHBRUSH"~	184,
+word_enc =="TOURIST"~	185,
+word_enc =="TOWEL"~	186,
+word_enc =="TUBA"~	187,
+word_enc =="TULIP"~	188,
+word_enc =="TURTLE"~	189,
+word_enc =="VACUUM"~	190,
+word_enc =="VALLEY"~	191,
+word_enc =="WAGON"~	192,
+word_enc =="WALNUT"~	193,
+word_enc =="WALRUS"~	194,
+word_enc =="WASHCLOTH"~	195,
+word_enc =="ZIPPER"~	196))
+
+```
+
+
+
+```{r}
+#analyze encoding data 
+#For each participant, calculate % belong and % not belong
+#Response 6 is belong, reponse 7 is not belong 
+
+#overall, not by condition
+switch11_fmri_encoding2$response[df$response == "na"] <- NA
+switch11_fmri_encoding2$response <- as.numeric(switch11_fmri_encoding2$response)
+
+
+switch11_fmri_encoding_avg2 <- switch11_fmri_encoding2 %>%
+  group_by(subject) %>%
+  summarise(
+    total_trials = sum(!is.na(response)),
+    yes_count = sum(response == 6, na.rm = TRUE),
+    no_count = sum(response == 7, na.rm = TRUE),
+    yes_percentage = (yes_count / total_trials) * 100,
+    no_percentage = (no_count / total_trials) * 100
+  )
+
+#participants were significantly more likely to indicate that an item does not belong in the scene 
+t.test(switch11_fmri_encoding_avg2$no_percentage,switch11_fmri_encoding_avg2$yes_percentage, paired =TRUE)
+
+cohensD(switch11_fmri_encoding_avg2$no_percentage, switch11_fmri_encoding_avg2$yes_percentage, method = "paired")
+
+overall_summary <- switch11_fmri_encoding_avg2 %>%
+  summarise(
+    avg_yes_percentage = mean(yes_percentage, na.rm = TRUE),
+    avg_no_percentage = mean(no_percentage, na.rm = TRUE),
+    sd_yes_percentage = sd(yes_percentage, na.rm = TRUE),
+    sd_no_percentage = sd(no_percentage, na.rm = TRUE)
+  )
+
+
+#by condition 
+switch11_fmri_encoding_avg3 <- switch11_fmri_encoding2 %>%
+  group_by(subject,condition) %>%
+  summarise(
+    total_trials = sum(!is.na(response)),
+    yes_count = sum(response == 6, na.rm = TRUE),
+    no_count = sum(response == 7, na.rm = TRUE),
+    yes_percentage = (yes_count / total_trials) * 100,
+    no_percentage = (no_count / total_trials) * 100
+  )
+
+condition_summary <- switch11_fmri_encoding_avg3 %>%
+  group_by(condition) %>% 
+  summarise(
+    avg_yes_percentage = mean(yes_percentage, na.rm = TRUE),
+    avg_no_percentage = mean(no_percentage, na.rm = TRUE)
+  )
+
+condition_long <- switch11_fmri_encoding_avg3 %>%
+  pivot_longer(cols = c(yes_percentage, no_percentage),
+               names_to = "response_type",
+               values_to = "percentage") %>% 
+  select(subject, condition, response_type, percentage)
+
+#no significant differences between switch rates 
+
+yes_data <- condition_long %>% filter(response_type == "yes_percentage")
+
+yes_data$condition<-as.factor(yes_data$condition)
+
+anova_yes_encoding <- aov_ez(id = "subject", dv = "percentage", within = c("condition"), yes_data)
+anova(anova_yes_encoding)
+
+eta_squared(anova_yes_encoding, partial = TRUE)
+```
+
+
+
+```{r}
+#adding trial type into the data frame for future analyses 
+#switch vs. repeat
+switch11_fmri_encoding3 <- encoding_sf11_fmri_avg %>% 
+  mutate(task_switch = case_when(
+    condition == "noswitch" & trialnum == "1" ~ "start",
+    condition == "noswitch" & trialnum != "1" ~ "repeat",
+    
+    condition == "highswitch" & trialnum == "1" ~ "start",
+    condition == "highswitch" & trialnum %% 2 == 0 ~ "repeat",
+    condition == "highswitch" & trialnum %% 2 != 0 & trialnum != "1" ~ "switch",
+    
+    condition == "midswitch" & trialnum == "1" ~ "start",
+    condition == "midswitch" & trialnum %in% c(2:6, 8:12, 14:18, 20:24) ~ "repeat",
+    condition == "midswitch" & trialnum %in% c(7, 13, 19) ~ "switch",
+    
+    condition == "lowswitch" & trialnum == "1" ~ "start",
+    condition == "lowswitch" & trialnum %in% c(2:12, 14:24) ~ "repeat",
+    condition == "lowswitch" & trialnum == "13" ~ "switch"
+  ))
+
+
+#boundary vs. preboundary 
+switch11_fmri_encoding3 <- switch11_fmri_encoding3 %>% 
+  mutate(task_switch_2 = case_when(
+    condition == "noswitch" & trialnum == "1" ~ "start",
+    condition == "noswitch" & trialnum != "1" ~ "repeat",
+  
+    condition == "highswitch" & trialnum == "1" ~ "start",
+    condition == "highswitch" & trialnum %% 2 == 0 ~ "preswitch",
+    condition == "highswitch" & trialnum %% 2 != 0 & trialnum != "1" ~ "switch",
+    
+    condition == "midswitch" & trialnum == "1" ~ "start",
+    condition == "midswitch" & trialnum %in% c(2:5, 8:11, 14:17, 20:24) ~ "repeat",
+    condition == "midswitch" & trialnum %in% c(6, 12, 18) ~ "preswitch",
+    condition == "midswitch" & trialnum %in% c(7, 13, 19) ~ "switch",
+    
+    condition == "lowswitch" & trialnum == "1" ~ "start",
+    condition == "lowswitch" & trialnum %in% c(2:11, 14:24) ~ "repeat",
+    condition == "lowswitch" & trialnum == "12" ~ "preswitch",
+    condition == "lowswitch" & trialnum == "13" ~ "switch"
+  ))
+```
+
+
+
+```{r}
+#sets path to data
+#changes ann files to txt files 
+path_to_data <- "~/Documents/DuBrow_lab/Projects/Multitasking/switchfreq_11/fmri_task/Recalls"
+setwd(path_to_data)
+ann_files <- list.files(path_to_data, recursive = TRUE, pattern = "*.ann", full.names = TRUE)
+text_files <- gsub(".ann", ".txt", ann_files)
+text_files
+file.rename(from= ann_files, to = text_files)
+```
+
+
+```{r}
+library(plyr)
+
+# Define the list of subject IDs explicitly
+subjects <- c("sub04", "sub05", "sub06", "sub08", "sub09", "sub10", "sub11", "sub12", 
+              "sub13", "sub14", "sub15", "sub16", "sub17", "sub18", "sub19", "sub20", 
+              "sub21", "sub22", "sub23", "sub24", "sub25", "sub26", "sub27", "sub28", 
+              "sub29", "sub30", "sub31", "sub32", "sub33", "sub34", "sub35", "sub36", 
+              "sub37", "sub38", "sub39", "sub40", "sub41", "sub43")
+
+process_subject_data <- function(subject_id) {
+  # Define the path to the subject's recall files
+  recall_files <- dir_ls(paste0("~/Documents/DuBrow_lab/Projects/Multitasking/switchfreq_11/fmri_task/Recalls/", subject_id), glob = "*.txt")
+  
+  # Load the recall data
+  recall_data <- ldply(recall_files, import)
+  
+  # Clean the .id column
+  recall_data <- recall_data %>% 
+    mutate(.id = str_replace_all(.id, "/Users/lrait/Documents/DuBrow_lab/Projects/Multitasking/switchfreq_11/fmri_task/Recalls/", ""))
+  
+  # Separate final recall data and other recall data
+  final_recall <- recall_data %>% 
+    filter(.id == paste0(subject_id, "/", subject_id, "_recall_fin.txt"))
+  
+  recall <- recall_data %>% 
+    filter(!grepl(paste0(subject_id, "/", subject_id, "_recall_fin.txt"), .id))
+  
+  list(final_recall = final_recall, recall = recall)
+}
+
+# Process data for each subject and assign to individual variables
+for (subject_id in subjects) {
+  data <- process_subject_data(subject_id)
+  
+  assign(paste0("final_recall_", subject_id), data$final_recall)
+  assign(paste0("recall_", subject_id), data$recall)
+}
+```
+
+
+```{r}
+#most important code chunk.- immediate recall 
+detach(package:Rmisc) 
+detach(package:plyr) #MUST RUN THIS
+
+split_enc_fmri <- split(switch11_fmri_encoding3,switch11_fmri_encoding3$subject)
+
+
+#list of all subjects individual recall data
+recall11_df_immed_fmri = list(recall_sub04, recall_sub05, recall_sub06, recall_sub08, recall_sub09, recall_sub10, recall_sub11,recall_sub12, recall_sub13, recall_sub14, recall_sub15, recall_sub16, recall_sub17,recall_sub18, recall_sub19, recall_sub20, recall_sub21, recall_sub22, recall_sub23, recall_sub24, recall_sub25, recall_sub26, recall_sub27, recall_sub28, recall_sub29, recall_sub30, recall_sub31, recall_sub32, recall_sub33, recall_sub34, recall_sub35, recall_sub36, recall_sub37, recall_sub38, recall_sub39, recall_sub40, recall_sub41, recall_sub43)
+
+
+
+#list of task data 
+sf11_by_sub_fmri <- list(split_enc_fmri$`4`, split_enc_fmri$`5`, split_enc_fmri$`6`, split_enc_fmri$`8`, split_enc_fmri$`9`, split_enc_fmri$`10`, split_enc_fmri$`11`, split_enc_fmri$`12`, split_enc_fmri$`13`, split_enc_fmri$`14`, split_enc_fmri$`15`, split_enc_fmri$`16`, split_enc_fmri$`17`, split_enc_fmri$`18`, split_enc_fmri$`19`, split_enc_fmri$`20`, split_enc_fmri$`21`, split_enc_fmri$`22`, split_enc_fmri$`23`, split_enc_fmri$`24`, split_enc_fmri$`25`, split_enc_fmri$`26`, split_enc_fmri$`27`, split_enc_fmri$`28`, split_enc_fmri$`29`, split_enc_fmri$`30`, split_enc_fmri$`31`, split_enc_fmri$`32`, split_enc_fmri$`33`, split_enc_fmri$`34`, split_enc_fmri$`35`, split_enc_fmri$`36`, split_enc_fmri$`37`, split_enc_fmri$`38`, split_enc_fmri$`39`, split_enc_fmri$`40`, split_enc_fmri$`41`, split_enc_fmri$`43`)
+
+#for every subject:
+c = 0 
+for (ssid in array(1:length(recall11_df_immed_fmri))){
+    i = sf11_by_sub_fmri[[ssid]]
+    j = recall11_df_immed_fmri[[ssid]]
+    c = c +1 
+    output  <- i %>% 
+      mutate(recalls = tolower(word_enc) %in% tolower(j$V3))%>%  #matches the recall with task word
+      mutate(recalls = case_when(recalls == "TRUE" ~ 1, #if recalled word, puts a 1 
+                               recalls == "FALSE" ~ 0)) %>%  
+      group_by(condition, trialcode) %>% 
+      mutate(sum_recall = sum(recalls)) %>% # this column sums the recalls by condition and task
+      group_by(blocknum) %>% 
+      mutate(sum_recall_block = sum(recalls)) %>% #sums recalls by block
+      group_by(trialcode) %>% 
+      mutate(sum_recall_trialcode = sum(recalls)) #sums recalls just by task 
+    if (c ==1) {
+      sf11_total_fmri = output
+    } else {
+      sf11_total_fmri = rbind(sf11_total_fmri,output)
+    }}
+
+sf11_total_fmri 
+```
+
+
+```{r}
+#recall demographics - immediate 
+library(dplyr)
+detach(package:Rmisc) 
+detach(package:plyr)
+
+#calculates percentage of words recalled 
+sf11_total_fmri2<- sf11_total_fmri %>% 
+  group_by(subject) %>% 
+  mutate(recall_percent2 = sum(recalls)/192*100) %>% 
+  summarise(mean_rec = mean(recall_percent2, na.rm = TRUE))
+sf11_total_fmri2
+
+
+#plot of each subjects recall
+sf11_total_fmri2 %>% 
+  ggplot(aes(x = as.character(subject), y = mean_rec))+
+  geom_col(fill = "orchid", width = .8)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45,hjust = 1))+
+  labs(title    = "Percent of Total Words Recalled",
+         x        = "Subject Number",
+         y        = "Percent Recalled")
+
+
+#plot of each subjects recall in order 
+sf11_total_fmri2 %>% 
+  ggplot(aes(x = reorder(as.character(subject), mean_rec), y = mean_rec))+
+  geom_col(fill = "orchid", width = .8)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45,hjust = 1))+
+  labs(title    = "Percent of Total Words Recalled",
+         x        = "Subject Number",
+         y        = "Percent Recalled")
+
+#mean
+mean_recall11_fmri<- mean(sf11_total_fmri2$mean_rec, na.rm = TRUE)
+mean_recall11_fmri
+
+#sd
+sd_11_fmri <-sd(sf11_total_fmri2$mean_rec, na.rm = TRUE)
+```
+
+
+```{r}
+#outliers at immed recall
+sf11_total_fmri2 %>% 
+  arrange(mean_rec)
+
+
+sd_11_fmri <-sd(sf11_total_fmri2$mean_rec, na.rm = TRUE)
+
+mean_recall11_fmri <- mean(sf11_total_fmri2$mean_rec, na.rm = TRUE)
+
+mean_recall11_fmri + (2.5 * sd_11_fmri) #62.72295
+mean_recall11_fmri - (2.5 * sd_11_fmri) #14.30556
+#No participants get excluded for recall performance 
+```
+
+
+
+
+```{r}
+#analysis for immediate recall performance 
+
+#calculates percentage of words recalled 
+mean_recall_condition<- sf11_total_fmri %>% 
+  group_by(subject,condition) %>% 
+  mutate(recall_percent2 = sum(recalls)/48*100) %>% 
+  summarise(mean_rec = mean(recall_percent2, na.rm = TRUE))
+mean_recall_condition
+
+sf11_total_fmri_aov<- aov_ez(id = "subject", dv = "mean_rec", within = c("condition"), mean_recall_condition)
+                             
+anova(sf11_total_fmri_aov)
+
+#no significant difference between switch rates 
+
+
+### calculating effect size 
+library(effectsize)
+eta_squared(sf11_total_fmri_aov, partial = TRUE)
+
+
+
+#mixed-effects model 
+sf11_total_fmri<- sf11_total_fmri %>% 
+  mutate(condition = fct_relevel(condition, "noswitch", "lowswitch", "midswitch", "highswitch"))
+
+immediate_recall_model<- glmer(recalls~condition +blocknum +list_half + (1|subject)+ (1|word_enc), family = binomial, data = sf11_total_fmri)
+summary(immediate_recall_model)
+
+library(r2glmm)
+r2glmm::r2beta(immediate_recall_model, partial = TRUE)
+```
+
+
+
+```{r}
+#plot average recalls for task and condition
+
+#main plot chunk 
+detach(package:Rmisc)
+detach(package:plyr)
+
+
+sf11_total_tally_same_immed_fmri <- sf11_total_fmri %>% 
+  group_by(subject, condition,blocknum) %>% 
+  tally() 
+sf11_total_tally_same_immed_fmri
+
+
+sf11_total_fmri3 <- sf11_total_fmri %>% 
+  dplyr:: select(subject, condition, trialcode, sum_recall, recalls, blocknum) %>% 
+  group_by(subject, condition,blocknum) %>% 
+  mutate(sum_recall2 = sum(recalls)) %>% 
+  summarise(mean_rec_cond = mean(sum_recall2)) 
+
+merged_fmri <- merge(sf11_total_fmri3,sf11_total_tally_same_immed_fmri)
+
+
+merged_fmri <- merged_fmri %>% 
+  mutate(prop_cond = mean_rec_cond/n)
+
+merged_fmri<- merged_fmri %>% 
+  mutate(condition = fct_relevel(condition, "noswitch", "lowswitch", "midswitch", "highswitch"))
+
+library(Rmisc)
+
+fmri_immediate_recall_model <- summarySE(merged_fmri, measurevar="prop_cond", groupvars = c("condition"), na.rm=FALSE, conf.interval=.95)
+
+
+fmri_immed <- fmri_immediate_recall_model %>% 
+  ggplot(aes(x = condition, y = prop_cond)) +
+  geom_col(width = .7, aes(fill = condition), alpha = .8, color = "black", size = .3) +
+  labs(title    = "Percentage of Recalls by Condition",
+         x        = "Condition",
+         y        = "Percent Recalled")+
+  theme_classic()+
+  geom_errorbar(width=.1, position=position_dodge(.9), aes(ymin=prop_cond-se, ymax=prop_cond+se))+
+scale_y_continuous(labels = scales::percent_format(accuracy = 1L), expand = c(0,0))+
+  scale_x_discrete(labels=c("control" = "Control","mid"= "Low Switch", "high" = "High Switch"))+
+    scale_fill_manual(values = c("lavender", "mediumpurple", "mediumpurple4", "purple4"))+
+  coord_cartesian(ylim = c(0, .55))
+
+ggsave(plot=fmri_immed, width = 8, height = 5, filename="~/fmri_immed2.pdf")
+```
+
+
+
+```{r}
+#serial position curve 
+
+detach(package:Rmisc)
+detach(package:plyr)
+
+
+spc_tally_sf <- sf11_total_fmri %>% 
+  group_by(subject, trialnum, condition) %>% 
+  tally() 
+spc_tally_sf
+
+
+spc_plot_sf <- sf11_total_fmri %>% 
+  dplyr:: select(subject, trialnum, recalls, condition) %>% 
+  group_by(subject, trialnum, condition) %>% 
+  mutate(sum_recall_spc = sum(recalls)) %>% 
+  summarise(mean_rec_spc = mean(sum_recall_spc)) 
+
+merged_spc_sf <- merge(spc_plot_sf,spc_tally_sf, by = c("subject", "trialnum", "condition")) %>% arrange(subject,trialnum)
+
+
+merged_spc_sf <- merged_spc_sf %>% 
+  mutate(prop_spc = mean_rec_spc/n)
+
+
+
+library(Rmisc)
+
+spc_within_sf <- summarySEwithin(merged_spc_sf, measurevar="prop_spc", withinvars= c("trialnum", "condition"), idvar="subject", na.rm=FALSE, conf.interval=.95)
+
+spc_within_sf <- spc_within_sf %>%
+  mutate(trialnum = as.numeric(levels(trialnum))[trialnum])
+
+spc_curve<- spc_within_sf %>% 
+  ggplot(aes(x = trialnum, y = prop_spc, group = 1)) +  # Setting group = 1 ensures all points are connected
+  geom_point(color = "black") +
+  geom_line() +  # Adding a line to connect the points
+  coord_cartesian(ylim = c(0, 1)) +
+  facet_wrap(. ~ condition) +
+  theme_classic()+
+  labs(title    = "Serial Position Curve",
+         x        = "Serial Position",
+         y        = "Percent Recalled")+
+  geom_errorbar(width=.1, position=position_dodge(.9), aes(ymin=prop_spc-se, ymax=prop_spc+se))+
+  scale_x_continuous(breaks = seq(1, max(as.numeric(as.character(spc_within_sf$trialnum))), by = 2))+
+  geom_point(shape = 16, color = "white", fill = "black")  + # Filled circles covering the line
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1L), expand = c(0,0))
+
+ggsave(plot=spc_curve, width = 8, height = 5, filename="~/spc_curve.pdf")
+```
+
+
+```{r}
+#model condition x task switch 
+#condition (low/mid/high and switch/repeat) 
+
+detach(package:Rmisc)
+detach(package:plyr)
+
+#not analyzing no switch as there are no switches 
+sf11_total_fmri_taskswitch<-sf11_total_fmri %>% 
+  filter(condition == "highswitch" | condition == "midswitch" |condition == "lowswitch") %>% 
+  filter(task_switch == "switch" | task_switch == "repeat")
+
+
+task_tally <- sf11_total_fmri_taskswitch %>% 
+  group_by(subject, condition,task_switch) %>% 
+  tally() 
+task_tally
+
+
+task_switch_mean <- sf11_total_fmri_taskswitch %>% 
+  dplyr:: select(subject, task_switch, recalls, condition) %>% 
+  group_by(subject, task_switch, condition) %>% 
+  mutate(sum_recall_switch = sum(recalls)) %>% 
+  summarise(mean_recall_switch = mean(sum_recall_switch)) 
+
+
+merged_task_switch <- merge(task_switch_mean,task_tally)
+
+merged_task_switch <- merged_task_switch %>% 
+  mutate(mean_recall_switch_prop = mean_recall_switch/n)
+
+
+task_switch_aov<- aov_ez(id = "subject", dv = "mean_recall_switch_prop", within = c("condition","task_switch"), merged_task_switch)
+                             
+anova(task_switch_aov)
+
+
+### calculating effect size 
+library(effectsize)
+eta_squared(sf11_total_fmri_aov, partial = TRUE)
+
+
+#Mixed-effects model
+sf11_total_fmri_taskswitch_model<- glmer(recalls~condition*task_switch + list_half+(1|subject)+ (1|word_enc), family = binomial, data = sf11_total_fmri_taskswitch)
+summary(sf11_total_fmri_taskswitch_model)
+plot_model(sf11_total_fmri_taskswitch_model, type = "int")
+
+```
+
+
+
+
+
+```{r}
+#analyzing boundary vs pre-boundary 
+#switch and item right before the switch 
+
+#selecting appropriate columns 
+sf11_total_fmri_taskswitch_2<-sf11_total_fmri %>% 
+  filter(condition == "highswitch" | condition == "midswitch" |condition == "lowswitch") %>% 
+  filter(task_switch_2 == "switch" | task_switch_2 == "preswitch")
+
+
+
+sf11_total_fmri_taskswitch_3 <- sf11_total_fmri_taskswitch_2 %>% 
+  group_by(subject, condition,task_switch_2) %>% 
+  tally() 
+sf11_total_fmri_taskswitch_3
+
+
+sf11_total_fmri_taskswitch_4 <- sf11_total_fmri_taskswitch_2 %>% 
+  dplyr:: select(subject, condition, trialcode, sum_recall, recalls, task_switch_2) %>% 
+  group_by(subject, condition,task_switch_2) %>% 
+  mutate(sum_recall2 = sum(recalls)) %>% 
+  summarise(mean_rec_switch = mean(sum_recall2)) 
+
+merged_switch <- merge(sf11_total_fmri_taskswitch_4,sf11_total_fmri_taskswitch_3)
+
+
+merged_switch <- merged_switch %>% 
+  mutate(prop_cond = mean_rec_switch/n)
+
+
+
+task_switch_aov2<- aov_ez(id = "subject", dv = "prop_cond", within = c("condition","task_switch_2"), merged_switch)
+                             
+anova(task_switch_aov2)
+#main effect of task switch such that boundary > preboundary
+#interaction not significant, but trending 
+
+
+### calculating effect size 
+library(effectsize)
+eta_squared(task_switch_aov2, partial = TRUE)
+
+#low switch
+merged_switch_low_s<- merged_switch %>% 
+  filter(condition == "lowswitch") %>% 
+  filter(task_switch_2 == "switch")
+
+
+merged_switch_low_p<- merged_switch %>% 
+  filter(condition == "lowswitch") %>% 
+  filter(task_switch_2 == "preswitch")
+
+#low switch, boundary > preboundary 
+t.test(merged_switch_low_s$prop_cond, merged_switch_low_p$prop_cond, paired = TRUE)
+
+cohensD(merged_switch_low_s$prop_cond, merged_switch_low_p$prop_cond, method = "paired")
+
+#midswitch 
+merged_switch_mid_s<- merged_switch %>% 
+  filter(condition == "midswitch") %>% 
+  filter(task_switch_2 == "switch")
+
+
+merged_switch_mid_p<- merged_switch %>% 
+  filter(condition == "midswitch") %>% 
+  filter(task_switch_2 == "preswitch")
+
+#mid switch, boundary > preboundary only trending 
+t.test(merged_switch_mid_s$prop_cond, merged_switch_mid_p$prop_cond, paired = TRUE)
+
+cohensD(merged_switch_mid_s$prop_cond, merged_switch_mid_p$prop_cond, method = "paired")
+
+
+#highswitch 
+merged_switch_high_s<- merged_switch %>% 
+  filter(condition == "highswitch") %>% 
+  filter(task_switch_2 == "switch")
+
+
+merged_switch_high_p<- merged_switch %>% 
+  filter(condition == "highswitch") %>% 
+  filter(task_switch_2 == "preswitch")
+
+#high switch, boundary = preboundary
+t.test(merged_switch_high_s$prop_cond, merged_switch_high_p$prop_cond, paired = TRUE)
+
+cohensD(merged_switch_high_s$prop_cond, merged_switch_high_p$prop_cond, method = "paired")
+
+
+#mixed effects model 
+sf11_total_fmri_taskswitch_model2<- glmer(recalls~condition*task_switch_2 +blocknum+ list_half+(1|subject)+ (1|word_enc), family = binomial, data = sf11_total_fmri_taskswitch_2)
+summary(sf11_total_fmri_taskswitch_model2)
+
+```
+
+```{r}
+#plot 
+
+merged_switch<- merged_switch %>% 
+  mutate(condition = fct_relevel(condition, "noswitch", "lowswitch", "midswitch", "highswitch"))
+
+library(Rmisc)
+
+sf11_total_fmri_taskswitch2 <- summarySEwithin(merged_switch, measurevar="prop_cond", withinvars = c("condition","task_switch_2"),idvar = "subject", na.rm=FALSE, conf.interval=.95)
+
+
+
+switch<-sf11_total_fmri_taskswitch2 %>% 
+  ggplot(aes(x = condition, fill = interaction(task_switch_2,condition), y = prop_cond)) +
+  geom_bar(position="dodge", stat="identity", color = "black", size = .3, alpha = .8) +
+  labs(title    = "Percentage of Recalls by Switch",
+         x        = "Switch Rate",
+         y        = "Percent Recalled")+
+  theme_classic()+
+  geom_errorbar(width=.1, position=position_dodge(.9), aes(ymin=prop_cond-se, ymax=prop_cond+se))+
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1L), expand = c(0,0))+
+  scale_x_discrete(labels=c("midswitch"= "Mid Switch", "highswitch" = "High Switch", "lowswitch" = "Low Switch"))+
+  scale_fill_manual(name = "Condition", values=c("lavender", "mediumpurple1", "darkorchid3", "darkorchid4", "mediumpurple3", "mediumpurple4")) +
+  coord_cartesian(ylim = c(0, .55))
+
+
+ggsave(plot=switch, width = 8, height = 5, filename="~/task_switch.pdf")
+```
+
+```{r}
+#prepare the data for temporal clustering by adding necessary columns to the recall dataframe 
+
+add_columns <- function(recall_df, enc_df) {
+  selected_enc_df <- enc_df[, c("condition", "trialcode", "subject", "blocknum", "list_half", "task_switch","task_switch_2" ,"trialnum", "image", "word_enc")]
+  merged_df <- left_join(recall_df, selected_enc_df, by = c("V3" = "word_enc"))
+  return(merged_df)
+}
+
+# Apply the function for each pair of recall and encoding data frames
+merged_recall_list <- Map(add_columns, recall11_df_immed_fmri, split_enc_fmri)
+
+# Combine the resulting data frames into one
+recall_combined <- do.call("rbind", merged_recall_list)
+
+
+```
+
+
+```{r}
+#set up for temporal clustering for MATLAB 
+#get encoding list for just no switch blocks 
+
+sf11_by_sub_fmri_2 <- do.call("rbind", sf11_by_sub_fmri) #rebinds into one dataframe for analysis 
+
+sf11_by_sub_fmri_2_noswitch <- sf11_by_sub_fmri_2 %>% 
+  filter(condition == "noswitch")
+
+
+sf11_by_sub_fmri_2_noswitch_2 <- split(sf11_by_sub_fmri_2_noswitch,sf11_by_sub_fmri_2_noswitch$subject)
+
+
+encod_list_noswitch = list()
+for (i in sf11_by_sub_fmri_2_noswitch_2){
+  encod_vert<- unstack(i, pool_number~blocknum)
+  nrow <- max(sapply(encod_vert, length))
+  encod_vert <- sapply(encod_vert, function(x) {
+  length(x) <- 24
+  x }) 
+  encod_hor <- t(encod_vert) #transposes it 
+  encod_list_noswitch[[length(encod_list_noswitch)+1]] = encod_hor}
+
+
+names(encod_list_noswitch)  <- paste("no_switch_enc_", c(04 ,05, 06 ,08 ,09 ,10 ,11 ,12 ,13 ,14 ,15 ,16 ,17 ,18 ,19 ,20 ,21 ,22 ,23 ,24 ,25 ,26 ,27 ,28 ,29 ,30 ,31 ,32 ,33 ,34, 35, 36 ,37 ,38 ,39 ,40 ,41 ,43), sep="")
+
+
+
+
+encod_list_noswitch
+
+library(MASS)
+
+encod_list_noswitch <- do.call(rbind, encod_list_noswitch)
+
+write.matrix(encod_list_noswitch, file="encod_list_noswitch.csv")
+
+################
+
+
+#Recall for no switch 
+
+recall11_df_immed_fmri_2_noswitch <- recall11_df_immed_fmri_2 %>% 
+  filter(condition == "noswitch")
+  
+
+recall11_df_immed_fmri_3_noswitch2 <- split(recall11_df_immed_fmri_2_noswitch,recall11_df_immed_fmri_2_noswitch$subject)
+
+
+
+recall_list_noswitch = list()
+for (i in recall11_df_immed_fmri_3_noswitch2){
+  recall_vert<- unstack(i, V2~blocknum)
+  recall_vert <- sapply(recall_vert, function(x) {
+  length(x) <- 24
+  x }) 
+  recall_hor <- t(recall_vert) #transposes it 
+  recall_hor[is.na(recall_hor)] <- 0
+  recall_list_noswitch[[length(recall_list_noswitch)+1]] = recall_hor}
+
+
+
+
+names(recall_list_noswitch)  <- paste("no_switch_rec_",  c(04 ,05, 06 ,08 ,09 ,10 ,11 ,12 ,13 ,14 ,15 ,16 ,17 ,18 ,19 ,20 ,21 ,22 ,23 ,24 ,25 ,26 ,27 ,28 ,29 ,30 ,31 ,32 ,33 ,34, 35, 36 ,37 ,38 ,39 ,40 ,41 ,43), sep="")
+recall_list_noswitch <- noquote(recall_list_noswitch)
+
+
+
+
+recall_list <- do.call(rbind, recall_list_noswitch)
+
+
+library(MASS)
+
+write.matrix(recall_list, file="recall_list_noswitch.csv")
+```
+
+```{r}
+#get encoding list for just low switch blocks 
+
+sf11_by_sub_fmri_2 <- do.call("rbind", sf11_by_sub_fmri) #rebinds into one dataframe for analysis 
+
+sf11_by_sub_fmri_2_lowswitch <- sf11_by_sub_fmri_2 %>% 
+  filter(condition == "lowswitch")
+
+
+sf11_by_sub_fmri_2_lowswitch_2 <- split(sf11_by_sub_fmri_2_lowswitch,sf11_by_sub_fmri_2_lowswitch$subject)
+
+
+encod_list_lowswitch = list()
+for (i in sf11_by_sub_fmri_2_lowswitch_2){
+  encod_vert<- unstack(i, pool_number~blocknum)
+  nrow <- max(sapply(encod_vert, length))
+  encod_vert <- sapply(encod_vert, function(x) {
+  length(x) <- 24
+  x }) 
+  encod_hor <- t(encod_vert) #transposes it 
+  encod_list_lowswitch[[length(encod_list_lowswitch)+1]] = encod_hor}
+
+
+names(encod_list_lowswitch)  <- paste("low_switch_enc_", c(04 ,05, 06 ,08 ,09 ,10 ,11 ,12 ,13 ,14 ,15 ,16 ,17 ,18 ,19 ,20 ,21 ,22 ,23 ,24 ,25 ,26 ,27 ,28 ,29 ,30 ,31 ,32 ,33 ,34, 35, 36 ,37 ,38 ,39 ,40 ,41 ,43), sep="")
+
+
+
+
+encod_list_lowswitch
+
+library(MASS)
+
+encod_list_lowswitch <- do.call(rbind, encod_list_lowswitch)
+
+write.matrix(encod_list_lowswitch, file="encod_list_lowswitch.csv")
+
+################
+
+
+#Recall for low switch 
+
+recall11_df_immed_fmri_2_lowswitch <- recall11_df_immed_fmri_2 %>% 
+  filter(condition == "lowswitch")
+  
+
+recall11_df_immed_fmri_2_lowswitch2 <- split(recall11_df_immed_fmri_2_lowswitch,recall11_df_immed_fmri_2_lowswitch$subject)
+
+
+
+recall_list_lowswitch = list()
+for (i in recall11_df_immed_fmri_2_lowswitch2){
+  recall_vert<- unstack(i, V2~blocknum)
+  recall_vert <- sapply(recall_vert, function(x) {
+  length(x) <- 24
+  x }) 
+  recall_hor <- t(recall_vert) #transposes it 
+  recall_hor[is.na(recall_hor)] <- 0
+  recall_list_lowswitch[[length(recall_list_lowswitch)+1]] = recall_hor}
+
+
+
+
+names(recall_list_lowswitch)  <- paste("low_switch_rec_",  c(04 ,05, 06 ,08 ,09 ,10 ,11 ,12 ,13 ,14 ,15 ,16 ,17 ,18 ,19 ,20 ,21 ,22 ,23 ,24 ,25 ,26 ,27 ,28 ,29 ,30 ,31 ,32 ,33 ,34, 35, 36 ,37 ,38 ,39 ,40 ,41 ,43), sep="")
+recall_list_lowswitch <- noquote(recall_list_lowswitch)
+
+
+
+
+recall_list <- do.call(rbind, recall_list_lowswitch)
+
+
+
+
+library(MASS)
+
+write.matrix(recall_list, file="recall_list_lowswitch.csv")
+```
+
+```{r}
+#get encoding list for just mid switch blocks 
+
+sf11_by_sub_fmri_2 <- do.call("rbind", sf11_by_sub_fmri) #rebinds into one dataframe for analysis 
+
+sf11_by_sub_fmri_2_midswitch <- sf11_by_sub_fmri_2 %>% 
+  filter(condition == "midswitch")
+
+
+sf11_by_sub_fmri_2_midswitch_2 <- split(sf11_by_sub_fmri_2_midswitch,sf11_by_sub_fmri_2_midswitch$subject)
+
+
+encod_list_midswitch = list()
+for (i in sf11_by_sub_fmri_2_midswitch_2){
+  encod_vert<- unstack(i, pool_number~blocknum)
+  nrow <- max(sapply(encod_vert, length))
+  encod_vert <- sapply(encod_vert, function(x) {
+  length(x) <- 24
+  x }) 
+  encod_hor <- t(encod_vert) #transposes it 
+  encod_list_midswitch[[length(encod_list_midswitch)+1]] = encod_hor}
+
+
+names(encod_list_midswitch)  <- paste("mid_switch_enc_", c(04 ,05, 06 ,08 ,09 ,10 ,11 ,12 ,13 ,14 ,15 ,16 ,17 ,18 ,19 ,20 ,21 ,22 ,23 ,24 ,25 ,26 ,27 ,28 ,29 ,30 ,31 ,32 ,33 ,34, 35, 36 ,37 ,38 ,39 ,40 ,41 ,43), sep="")
+
+
+
+
+encod_list_midswitch
+
+library(MASS)
+
+encod_list_midswitch <- do.call(rbind, encod_list_midswitch)
+
+write.matrix(encod_list_midswitch, file="encod_list_midswitch.csv")
+
+################
+
+
+#Recall for mid switch 
+
+recall11_df_immed_fmri_2_midswitch <- recall11_df_immed_fmri_2 %>% 
+  filter(condition == "midswitch")
+  
+
+recall11_df_immed_fmri_2_midswitch2 <- split(recall11_df_immed_fmri_2_midswitch,recall11_df_immed_fmri_2_midswitch$subject)
+
+
+
+recall_list_midswitch = list()
+for (i in recall11_df_immed_fmri_2_midswitch2){
+  recall_vert<- unstack(i, V2~blocknum)
+  recall_vert <- sapply(recall_vert, function(x) {
+  length(x) <- 24
+  x }) 
+  recall_hor <- t(recall_vert) #transposes it 
+  recall_hor[is.na(recall_hor)] <- 0
+  recall_list_midswitch[[length(recall_list_midswitch)+1]] = recall_hor}
+
+
+
+
+names(recall_list_midswitch)  <- paste("mid_switch_rec_",  c(04 ,05, 06 ,08 ,09 ,10 ,11 ,12 ,13 ,14 ,15 ,16 ,17 ,18 ,19 ,20 ,21 ,22 ,23 ,24 ,25 ,26 ,27 ,28 ,29 ,30 ,31 ,32 ,33 ,34, 35, 36 ,37 ,38 ,39 ,40 ,41 ,43), sep="")
+recall_list_midswitch <- noquote(recall_list_midswitch)
+
+
+
+
+recall_list <- do.call(rbind, recall_list_midswitch)
+
+
+
+
+library(MASS)
+
+write.matrix(recall_list, file="recall_list_midswitch.csv")
+```
+
+
+```{r}
+#get encoding list for just high switch blocks 
+
+sf11_by_sub_fmri_2 <- do.call("rbind", sf11_by_sub_fmri) #rebinds into one dataframe for analysis 
+
+sf11_by_sub_fmri_2_highswitch <- sf11_by_sub_fmri_2 %>% 
+  filter(condition == "highswitch")
+
+
+sf11_by_sub_fmri_2_highswitch_2 <- split(sf11_by_sub_fmri_2_highswitch,sf11_by_sub_fmri_2_highswitch$subject)
+
+
+encod_list_highswitch = list()
+for (i in sf11_by_sub_fmri_2_highswitch_2){
+  encod_vert<- unstack(i, pool_number~blocknum)
+  nrow <- max(sapply(encod_vert, length))
+  encod_vert <- sapply(encod_vert, function(x) {
+  length(x) <- 24
+  x }) 
+  encod_hor <- t(encod_vert) #transposes it 
+  encod_list_highswitch[[length(encod_list_highswitch)+1]] = encod_hor}
+
+
+names(encod_list_highswitch)  <- paste("high_switch_enc_", c(04 ,05, 06 ,08 ,09 ,10 ,11 ,12 ,13 ,14 ,15 ,16 ,17 ,18 ,19 ,20 ,21 ,22 ,23 ,24 ,25 ,26 ,27 ,28 ,29 ,30 ,31 ,32 ,33 ,34, 35, 36 ,37 ,38 ,39 ,40 ,41 ,43), sep="")
+
+
+
+
+encod_list_highswitch
+
+library(MASS)
+
+encod_list_highswitch <- do.call(rbind, encod_list_highswitch)
+
+write.matrix(encod_list_highswitch, file="encod_list_highswitch.csv")
+
+################
+
+
+#Recall for high switch 
+
+recall11_df_immed_fmri_2_highswitch <- recall11_df_immed_fmri_2 %>% 
+  filter(condition == "highswitch")
+  
+
+recall11_df_immed_fmri_2_highswitch2 <- split(recall11_df_immed_fmri_2_highswitch,recall11_df_immed_fmri_2_highswitch$subject)
+
+
+
+recall_list_highswitch = list()
+for (i in recall11_df_immed_fmri_2_highswitch2){
+  recall_vert<- unstack(i, V2~blocknum)
+  recall_vert <- sapply(recall_vert, function(x) {
+  length(x) <- 24
+  x }) 
+  recall_hor <- t(recall_vert) #transposes it 
+  recall_hor[is.na(recall_hor)] <- 0
+  recall_list_highswitch[[length(recall_list_highswitch)+1]] = recall_hor}
+
+
+
+
+names(recall_list_highswitch)  <- paste("high_switch_rec_",  c(04 ,05, 06 ,08 ,09 ,10 ,11 ,12 ,13 ,14 ,15 ,16 ,17 ,18 ,19 ,20 ,21 ,22 ,23 ,24 ,25 ,26 ,27 ,28 ,29 ,30 ,31 ,32 ,33 ,34, 35, 36 ,37 ,38 ,39 ,40 ,41 ,43), sep="")
+recall_list_highswitch <- noquote(recall_list_highswitch)
+
+
+
+
+recall_list <- do.call(rbind, recall_list_highswitch)
+
+
+
+
+library(MASS)
+
+write.matrix(recall_list, file="recall_list_highswitch.csv")
+```
+
+
+```{r}
+temp_clust_no<- c(0.5431,
+    0.5267,
+    0.5088,
+    0.5842,
+       0.531,
+    0.5580,
+    0.5076,
+    0.5181,
+    0.5706,
+    0.3974,
+    0.6421,
+    0.5349,
+    0.5060,
+    0.4820,
+    0.6323,
+    0.7742,
+    0.6511,
+    0.5598,
+    0.5509,
+    0.5221,
+    0.6479,
+    0.4177,
+    0.6373,
+    0.4999,
+    0.7266,
+    0.6651,
+    0.4114,
+    0.5725,
+    0.7023,
+    0.6600,
+    0.5446,
+    0.4949,
+    0.6877,
+    0.6346,
+    0.5964,
+    0.5721,
+    0.4973,
+    0.4521)
+
+mean(temp_clust_no, na.rm = TRUE)
+sd(temp_clust_no, na.rm = TRUE)/ sqrt(length(temp_clust_no))
+```
+
+```{r}
+temp_clust_low<- c(0.7182,
+    0.6080,
+    0.6086,
+    0.5374,
+       0.5101,
+    0.5375,
+    0.5780,
+    0.5602,
+    0.6110,
+    0.6073,
+    0.4806,
+    0.6613,
+    0.6539,
+    0.6386,
+    0.6090,
+    0.7471,
+    0.6798,
+    0.6366,
+    0.4931,
+    0.6354,
+    0.5830,
+    0.6076,
+    0.6223,
+    0.7514,
+    0.6349,
+    0.6234,
+    0.2876,
+    0.6486,
+    0.6444,
+    0.5997,
+    0.5935,
+    0.7300,
+    0.5630,
+    0.7037,
+    0.6397,
+    0.5962,
+    0.5503,
+    0.7482)
+
+mean(temp_clust_low, na.rm = TRUE)
+sd(temp_clust_low, na.rm = TRUE)/ sqrt(length(temp_clust_low))
+```
+
+
+```{r}
+temp_clust_mid <- c(0.6739,
+    0.6092,
+    0.5468,
+    0.4737,
+       0.4658,
+    0.6943,
+    0.6421,
+    0.6665,
+    0.5994,
+    0.6486,
+    0.6053,
+    0.5410,
+    0.5510,
+    0.5923,
+    0.6403,
+    0.5483,
+    0.6048,
+    0.6017,
+    0.5382,
+    0.5666,
+    0.7412,
+    0.5940,
+    0.6516,
+    0.4233,
+    0.8040,
+    0.6052,
+    0.6430,
+    0.5337,
+    0.5836,
+    0.5429,
+    0.5346,
+    0.6415,
+    0.5472,
+    0.6888,
+    0.6100,
+    0.5604,
+    0.5149,
+    0.5720)
+
+mean(temp_clust_mid, na.rm = TRUE)
+sd(temp_clust_mid, na.rm = TRUE)/ sqrt(length(temp_clust_mid))
+```
+
+```{r}
+temp_clust_high <- c(0.5727,
+    0.6026,
+    0.5595,
+    0.4069,
+    0.4788,
+    0.4983,
+    0.3594,
+    0.5761,
+    0.4482,
+    0.4202,
+    0.6702,
+    0.4858,
+    0.5724,
+    0.5325,
+    0.5095,
+    0.4608,
+    0.6101,
+    0.5490,
+    0.4371,
+    0.2923,
+    0.6183,
+    0.4590,
+    0.5818,
+    0.4045,
+    0.4585,
+    0.5894,
+    0.5147,
+    0.6975,
+    0.6710,
+    0.5161,
+    0.4364,
+    0.4993,
+    0.6767,
+    0.5673,
+    0.5403,
+    0.5076,
+    0.7022,
+    0.5737)
+
+
+mean(temp_clust_high, na.rm = TRUE)
+sd(temp_clust_high, na.rm = TRUE)/ sqrt(length(temp_clust_high))
+```
+
+
+```{r}
+#greater than chance-level clust 
+library(lsr)
+
+t.test(temp_clust_no, mu = .5)
+
+cohensD(temp_clust_no)
+
+t.test(temp_clust_low, mu = .5)
+
+cohensD(temp_clust_low)
+
+t.test(temp_clust_mid, mu = .5)
+
+cohensD(temp_clust_mid)
+
+t.test(temp_clust_high, mu = .5)
+
+cohensD(temp_clust_high)
+
+```
+
+
+```{r}
+#overall temporal clustering analyzis 
+temp_clust_11_fmri <- import("temp_clustering_sf11_fmri_2.csv")
+
+
+temp_clustaov <- aov_ez(id = "subject", dv = "temp_clust_score", within = c("condition"), temp_clust_11_fmri)
+anova(temp_clustaov)
+
+eta_squared(temp_clustaov, partial = TRUE)
+
+temp_clust_11_fmri_2 <- temp_clust_11_fmri %>% 
+  group_by(condition) %>% 
+  summarise(mean_temp_clust_fmri = mean(temp_clust_score, na.rm = TRUE), se_temp = std.error(temp_clust_score)) 
+
+```
+
+
+```{r}
+#post-hoc t-tests 
+
+t.test(temp_clust_low, temp_clust_no, paired = TRUE)
+
+cohensD(temp_clust_low, temp_clust_no, method = "paired")
+
+t.test(temp_clust_mid, temp_clust_no,  paired = TRUE)
+
+cohensD(temp_clust_mid, temp_clust_no, method = "paired")
+
+t.test(temp_clust_no, temp_clust_high, paired = TRUE)
+
+cohensD(temp_clust_no, temp_clust_high, method = "paired")
+
+t.test(temp_clust_low, temp_clust_high, paired = TRUE)
+
+cohensD(temp_clust_low, temp_clust_high, method = "paired")
+
+t.test(temp_clust_low, temp_clust_mid, paired = TRUE)
+
+cohensD(temp_clust_low, temp_clust_mid, method = "paired")
+
+t.test(temp_clust_mid, temp_clust_high, paired = TRUE)
+
+cohensD(temp_clust_mid, temp_clust_high, method = "paired")
+
+```
+
+
+```{r}
+#temporal clustering and plots 
+
+library(Rmisc)
+
+
+temp_clust_sf11_fmri_3 <- summarySE(temp_clust_11_fmri, measurevar="temp_clust_score", groupvars = c("condition"), na.rm=FALSE, conf.interval=.95)
+
+temp_clust_sf11_fmri_3<- temp_clust_sf11_fmri_3 %>% 
+  mutate(condition = fct_relevel(condition, "noswitch", "lowswitch", "midswitch", "highswitch"))
+
+
+library(scales)
+
+fmri_temp<- temp_clust_sf11_fmri_3 %>% 
+  ggplot(aes(x = condition, fill = interaction(condition), y = temp_clust_score)) +
+  geom_bar(position="dodge", stat="identity", color = "black", size = .3, alpha = .8) +
+  labs(title    = "Temporal Clustering",
+         x        = "Condition",
+         y        = "Temporal Clustering Score")+
+  theme_classic()+
+  geom_errorbar(width=.1, position=position_dodge(.9), aes(ymin=temp_clust_score-se, ymax=temp_clust_score+se))+
+  scale_y_continuous(expand = c(0,0))+
+  coord_cartesian(ylim = c(.5, .65))+
+  scale_fill_manual(values = c("lavender", "mediumpurple", "mediumpurple4", "purple4"))
+
+
+ggsave(plot=fmri_temp, width = 8, height = 5, filename="~/fmri_temp_clust.pdf")
+
+
+fmri_temp2<- temp_clust_sf11_fmri_3 %>% 
+  ggplot(aes(x = condition, fill = interaction(condition), y = temp_clust_score)) +
+  geom_point(color = "black", size = 3, alpha = .8) +
+  geom_hline(yintercept=.5, linetype = "dashed")+
+  labs(title    = "Temporal Clustering",
+         x        = "Condition",
+         y        = "Temporal Clustering Score")+
+  theme_classic()+
+  geom_errorbar(width=.1, position=position_dodge(.9), aes(ymin=temp_clust_score-se, ymax=temp_clust_score+se))+
+  scale_y_continuous(expand = c(0,0))+
+  coord_cartesian(ylim = c(.40, .65))+
+  scale_fill_manual(values = c("lavender", "mediumpurple", "mediumpurple4", "purple4"))
+
+ggsave(plot=fmri_temp2, width = 8, height = 5, filename="~/fmri_temp_clust2.pdf")
+```
+
+
+
+```{r}
+#temporal clustering baseline corrected 
+
+
+temp_clust_11_fmri_no<- temp_clust_11_fmri %>% 
+  filter(condition == "noswitch")
+
+temp_clust_11_fmri_low_no <- temp_clust_11_fmri %>% 
+  filter(condition == "lowswitch") %>% 
+  merge(temp_clust_11_fmri_no, by = "subject") %>% 
+  mutate(temp_clust_score_baseline = temp_clust_score.x - temp_clust_score.y) %>% 
+  dplyr::select(subject, condition.x, temp_clust_score_baseline)
+
+temp_clust_11_fmri_high_no<- temp_clust_11_fmri %>% 
+  filter(condition == "highswitch")%>% 
+  merge(temp_clust_11_fmri_no, by = "subject") %>% 
+  mutate(temp_clust_score_baseline = temp_clust_score.x - temp_clust_score.y) %>% 
+  dplyr::select(subject, condition.x, temp_clust_score_baseline)
+
+temp_clust_11_fmri_mid_no<- temp_clust_11_fmri %>% 
+  filter(condition == "midswitch")%>% 
+  merge(temp_clust_11_fmri_no, by = "subject") %>% 
+  mutate(temp_clust_score_baseline = temp_clust_score.x - temp_clust_score.y) %>% 
+  dplyr::select(subject, condition.x, temp_clust_score_baseline)
+
+
+temp_clust_11_fmri_baseline <- rbind(temp_clust_11_fmri_low_no, temp_clust_11_fmri_high_no, temp_clust_11_fmri_mid_no)
+```
+
+
+```{r}
+#low/mid vs. high
+temp_clust_11_fmri_baseline_low <- temp_clust_11_fmri_baseline %>% 
+  filter(condition.x == "lowswitch")
+
+temp_clust_11_fmri_baseline_mid <- temp_clust_11_fmri_baseline %>% 
+  filter(condition.x == "midswitch")
+
+temp_clust_11_fmri_baseline_low_mid<- merge(temp_clust_11_fmri_baseline_low, temp_clust_11_fmri_baseline_mid, by = c("subject"))
+
+
+temp_clust_11_fmri_baseline_low_mid2<- temp_clust_11_fmri_baseline_low_mid %>%
+  rowwise() %>% 
+  mutate(temp_clust_score_baseline = mean(c(temp_clust_score_baseline.x,temp_clust_score_baseline.y))) %>% 
+  dplyr::select(subject, temp_clust_score_baseline) %>% 
+  mutate(condition.x = "low_mid")%>% 
+  arrange((subject))
+
+
+temp_clust_11_fmri_baseline_high <- temp_clust_11_fmri_baseline %>% 
+  filter(condition.x == "highswitch")
+
+
+
+t.test(temp_clust_11_fmri_baseline_low_mid2$temp_clust_score_baseline, temp_clust_11_fmri_baseline_high$temp_clust_score_baseline, paired = TRUE)
+
+cohensD(temp_clust_11_fmri_baseline_low_mid2$temp_clust_score_baseline, temp_clust_11_fmri_baseline_high$temp_clust_score_baseline, method = "paired")
+```
+
+```{r}
+#plot low/mid vs high 
+detach(package:Rmisc)
+detach(package:plyr)
+
+temp_clust_11_fmri_baseline_2 <- rbind(temp_clust_11_fmri_baseline_low_mid2, temp_clust_11_fmri_baseline_high)
+
+temp_clust_11_fmri_baseline_2_summ <- temp_clust_11_fmri_baseline_2 %>%
+  group_by(condition.x) %>% 
+  summarise(temp_clust_score_baseline = mean(temp_clust_score_baseline, na.rm = TRUE))
+
+temp_clust_11_fmri_baseline_2$condition.x<- as.factor(temp_clust_11_fmri_baseline_2$condition.x)
+
+temp_clust_11_fmri_baseline_2_se <- temp_clust_11_fmri_baseline_2 %>%
+  group_by(condition.x) %>% 
+  summarise(temp_se=std.error(temp_clust_score_baseline))  
+
+temp_clust_11_fmri_baseline_2_merge <- merge(temp_clust_11_fmri_baseline_2_summ, temp_clust_11_fmri_baseline_2_se)  
+
+
+temp_clust_corrected<- ggplot(temp_clust_11_fmri_baseline_2_merge, aes(x = condition.x, fill = condition.x,y = temp_clust_score_baseline)) +
+  geom_bar(position="dodge", stat="identity", color = "black", size = .3, alpha = .8)+
+    labs(title    = "Relationship between Temporal Clustering and Condition",
+         x        = "Condition",
+         y        = "Temporal Clustering Score (Baseline Corrected)")+
+  theme_classic()+
+  scale_fill_manual(name = "Condition", values=c( "mediumpurple4","darkorchid3"))+
+  geom_errorbar(width=.1, position=position_dodge(.9), aes(ymin=temp_clust_score_baseline-temp_se, ymax=temp_clust_score_baseline+temp_se))+
+  coord_cartesian(ylim = c(-.06, .06))+
+  scale_x_discrete(limits = rev(levels(temp_clust_11_fmri_baseline_2_merge$condition.x)))
+
+ggsave(plot=temp_clust_corrected, width = 8, height = 5, filename="~/temp_clust_corrected.pdf")
+```
+
+```{r}
+#create plot for differences
+
+temp_clust_11_fmri_baseline_merge <- merge(temp_clust_11_fmri_baseline_low_mid2, temp_clust_11_fmri_baseline_high, by = "subject")
+
+temp_clust_11_fmri_baseline_merge_sub<- temp_clust_11_fmri_baseline_merge %>% 
+  mutate(subtract_col = temp_clust_score_baseline.x - temp_clust_score_baseline.y)
+
+temp_clust_11_fmri_baseline_merge_mean<- temp_clust_11_fmri_baseline_merge_sub %>% 
+  summarise(mean_col = mean(subtract_col))
+
+
+
+temp_clust_sub<- temp_clust_11_fmri_baseline_merge_sub %>% 
+  ggplot(aes(x = condition.x.x, y = subtract_col)) + 
+  geom_violinhalf(fill = "grey", alpha = .5, width = .5) +
+  geom_jitter(color = "black", size = 2, width = 0.08, height = 0)+
+  geom_hline(yintercept=0, linetype = "dashed")+
+  geom_hline(yintercept=0.07536184, linetype = "solid")+
+  labs(  x        = "Subject",
+         y        = "Difference in Temporal Clustering")+
+  theme_classic()+
+  coord_cartesian(ylim = c(-.18, .31))
+
+
+ggsave(plot=temp_clust_sub, width = 8, height = 5, filename="~/temp_clust_sub.pdf")
+
+
+```
+
+
+
+
+
+
+
+#Analysis to correlate number of boundary items recalled with temporal clustering score 
+
+```{r}
+#remove no switch condition as the boundary analysis does not include the no switch condition because there are no switches
+temp_clust_11_fmri_new<- temp_clust_11_fmri %>% 
+  arrange(subject) %>% 
+  filter(!grepl('noswitch', condition))
+
+
+#separate out boundary and pre-boundary 
+merged_switch_pre<- merged_switch %>% 
+  arrange(subject, condition) %>% 
+  filter(task_switch_2 == "preswitch")
+
+
+merged_switch_switch<- merged_switch %>% 
+  arrange(subject, condition) %>% 
+  filter(task_switch_2 == "switch")
+
+
+#run the correlations separately for each boundary type, but merged across all conditions. Not ideal. 
+corr_preboundary<-cor.test(temp_clust_11_fmri_new$temp_clust_score, merged_switch_pre$prop_cond, method = "spearman")
+
+corr_boundary<-cor.test(temp_clust_11_fmri_new$temp_clust_score, merged_switch_switch$prop_cond, method = "spearman")
+
+
+#now, let's run each condition separately. 
+
+#low switch
+temp_clust_11_fmri_low<- temp_clust_11_fmri %>% 
+  arrange(subject) %>% 
+  filter(condition == "lowswitch")
+
+
+#separate out boundary and pre-boundary 
+merged_switch_pre_low<- merged_switch %>% 
+  arrange(subject) %>% 
+  filter(task_switch_2 == "preswitch") %>% 
+  filter(condition == "lowswitch")
+
+
+merged_switch_switch_low<- merged_switch %>% 
+  arrange(subject) %>% 
+  filter(task_switch_2 == "switch") %>% 
+  filter(condition == "lowswitch")
+
+#run the correlations separately for each boundary type, for each condition 
+corr_preboundary_low<-cor.test(temp_clust_11_fmri_low$temp_clust_score, merged_switch_pre_low$prop_cond, method = "spearman")
+
+corr_boundary_low<-cor.test(temp_clust_11_fmri_low$temp_clust_score, merged_switch_switch_low$prop_cond, method = "spearman")
+
+#mid switch
+temp_clust_11_fmri_mid<- temp_clust_11_fmri %>% 
+  arrange(subject) %>% 
+  filter(condition == "midswitch")
+
+
+#separate out boundary and pre-boundary 
+merged_switch_pre_mid<- merged_switch %>% 
+  arrange(subject) %>% 
+  filter(task_switch_2 == "preswitch") %>% 
+  filter(condition == "midswitch")
+
+
+merged_switch_switch_mid<- merged_switch %>% 
+  arrange(subject) %>% 
+  filter(task_switch_2 == "switch") %>% 
+  filter(condition == "midswitch")
+
+#run the correlations separately for each boundary type, for each condition 
+corr_preboundary_mid<-cor.test(temp_clust_11_fmri_mid$temp_clust_score, merged_switch_pre_mid$prop_cond, method = "spearman")
+
+corr_boundary_mid<-cor.test(temp_clust_11_fmri_mid$temp_clust_score, merged_switch_switch_mid$prop_cond, method = "spearman")
+
+
+
+#high switch
+temp_clust_11_fmri_high<- temp_clust_11_fmri %>% 
+  arrange(subject) %>% 
+  filter(condition == "highswitch")
+
+
+#separate out boundary and pre-boundary 
+merged_switch_pre_high<- merged_switch %>% 
+  arrange(subject) %>% 
+  filter(task_switch_2 == "preswitch") %>% 
+  filter(condition == "highswitch")
+
+
+merged_switch_switch_high<- merged_switch %>% 
+  arrange(subject) %>% 
+  filter(task_switch_2 == "switch") %>% 
+  filter(condition == "highswitch")
+
+#run the correlations separately for each boundary type, for each condition 
+corr_preboundary_high<-cor.test(temp_clust_11_fmri_high$temp_clust_score, merged_switch_pre_high$prop_cond, method = "spearman")
+
+corr_boundary_high<-cor.test(temp_clust_11_fmri_high$temp_clust_score, merged_switch_switch_high$prop_cond, method = "spearman")
+
+
+#no significant correlation between recall of boundary items and temporal clustering score 
+
+```
+
+
+
